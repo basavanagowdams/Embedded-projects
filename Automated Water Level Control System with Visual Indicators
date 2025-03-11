@@ -1,0 +1,30 @@
+const int floatSensorPin = 2;  // Connect float sensor to digital pin 2
+const int relayPin = 8;       // Connect relay to digital pin 8
+const int led1Pin = 13;        // Connect LED to digital pin 13
+ const int led2Pin = 10;
+
+void setup() {
+  pinMode(floatSensorPin, INPUT);
+  pinMode(relayPin, OUTPUT);
+  pinMode(led1Pin, OUTPUT);
+  pinMode(led2Pin, OUTPUT);
+}
+
+void loop() {
+  int waterLevel = digitalRead(floatSensorPin);
+
+  if (waterLevel == LOW) {
+    // Water is present, turn off the relay and indicate with LED
+    digitalWrite(relayPin, HIGH);
+    digitalWrite(led1Pin, HIGH);
+    digitalWrite(led2Pin, LOW);
+  } else {
+    // Water is not present, turn on the relay and indicate with LED
+    digitalWrite(relayPin, LOW);
+    digitalWrite(led1Pin, LOW);
+    digitalWrite(led2Pin, HIGH);
+  }
+
+  // Introduce delay for stability, adjust as needed
+delay(1000);
+}
