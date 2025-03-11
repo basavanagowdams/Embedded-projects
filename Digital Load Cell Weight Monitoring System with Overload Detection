@@ -1,0 +1,125 @@
+#include <HX711_ADC.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#if defined(ESP8266) || defined(ESP32) || defined(AVR)
+#include <EEPROM.h>
+#endif
+
+// HX711 pins:
+const int HX711_dout = 4; // mcu > HX711 dout pin
+const int HX711_sck = 5;  // mcu > HX711 sck pin
+const int buzzer = 11; // buzzer pin
+
+// HX711 constructor:
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
+
+// LCD setup (I2C address 0x27 or 0x3F depending on your display)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int calVal_eepromAdress = 0;
+unsigned long t = 0;
+
+void setup() {
+  Serial.begin(57600);
+  delay(10);
+  Serial.println();
+  Serial.println("Starting...");
+
+  // Initialize the LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Initializing...");
+  delay(2000);
+  lcd.clear();
+
+  // Initialize the buzzer pin
+  pinMode(buzzer, OUTPUT);
+  digitalWrite(buzzer, LOW); // Turn buzzer off initially
+
+  LoadCell.begin();
+  float calibrationValue = 696.0; // Set your calibration value here
+  LoadCell.start(2000, true);     // 2 seconds stabilizing time, perform tare
+
+  if (LoadCell.getTareTimeoutFlag()) {
+    Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
+    lcd.setCursor(0, 0);
+    lcd.print("HX711 Timeout");
+    while (1);
+  } else {
+    LoadCell.setCalFactor(calibrationValue); // set calibration value
+    Serial.println("Startup is complete");
+    lcd.setCursor(0, 0);
+    lcd.print("Startup Complete");
+    delay(2000);
+    lcd.clear();
+  }
+}
+
+void loop() {
+  static boolean newDataReady = 0;
+  const int serialPrintInterval = 500; // Print to serial every 500 ms
+
+  // Check for new data from the HX711:
+  if (LoadCell.update()) newDataReady = true;
+
+  // If new data is ready, display it:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      float weight = LoadCell.getData();
+      Serial.print("Load_cell output val: ");
+      Serial.println(weight);
+
+      // Display on the LCD:
+      lcd.setCursor(0, 0);
+      lcd.print("MAX wei: ");
+      lcd.setCursor(9, 0);
+      lcd.print("150");
+      lcd.setCursor(14, 0);
+      lcd.print("GM");
+
+      lcd.setCursor(0, 1);
+      lcd.print("Weight: ");
+      lcd.setCursor(9, 1);
+      lcd.print(weight);
+      lcd.setCursor(14, 1);
+      lcd.print("GM");
+
+      // Check for overload:
+      if (weight > 150.0) {
+        // Activate the buzzer
+        digitalWrite(buzzer, HIGH);
+
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("LIFT OVERLOAD");
+        lcd.setCursor(0, 1);
+        lcd.print(" DETECTION ");
+        delay(2000);
+        lcd.clear();
+      } else {
+        // Deactivate the buzzer if weight is below threshold
+        digitalWrite(buzzer, LOW);
+      }
+
+      newDataReady = 0;
+      t = millis();
+    }
+  }
+
+  // Check for tare command from the serial monitor:
+  if (Serial.available() > 0) {
+    char inByte = Serial.read();
+    if (inByte == 't') LoadCell.tareNoDelay();
+  }
+
+  // Check if the last tare operation is complete:
+  if (LoadCell.getTareStatus() == true) {
+    Serial.println("Tare complete");
+    lcd.setCursor(0, 0);
+    lcd.print("Tare complete");
+    delay(2000);
+    lcd.clear();
+  }
+}
