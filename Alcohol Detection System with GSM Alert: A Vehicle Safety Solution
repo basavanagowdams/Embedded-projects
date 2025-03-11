@@ -1,0 +1,87 @@
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(13, 12, 11, 10, 9, 8);
+#include <SoftwareSerial.h>
+#include "Adafruit_FONA.h"
+ 
+ 
+#define FONA_RX            2
+#define FONA_TX            3
+#define FONA_RST           4
+
+const int alcoholSensorPin = A0;
+const int Relay=6;
+SoftwareSerial myserial(0,1);
+ 
+
+#define FONA_RI_INTERRUPT  0
+SoftwareSerial fonaSS = SoftwareSerial(FONA_TX, FONA_RX);
+ 
+Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
+
+
+char PHONE_1[21] = "************"; // Enter your Mobile Number
+
+char objectalert[141]= "Driver is drunk" ; 
+
+void setup()
+{
+  pinMode(alcoholSensorPin, INPUT);
+  pinMode(Relay, OUTPUT);
+  digitalWrite(Relay,LOW);
+
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print(" Alcohol ");
+  lcd.setCursor(0, 1);
+  lcd.print(" Detection ");
+  delay(3000);
+  lcd.clear();
+
+    
+  Serial.begin(9600);
+  Serial.println(F("Initializing....(May take 3 seconds)"));
+  delay(5000);
+  fonaSS.begin(9600); // if you're using software serial
+  if (! fona.begin(fonaSS))
+  {   // can also try fona.begin(Serial1) 
+    Serial.println(F("Couldn't find FONA"));
+    while (1);
+  }
+
+   fona.print ("AT+CSMP=17,167,0,0\r");
+   Serial.println(F("FONA is OK"));
+ 
+}
+
+void loop()
+{
+  // Read the value from the alcohol sensor
+  int sensorValue = analogRead(alcoholSensorPin);
+  
+  // Print the sensor value to the Serial Monitor (for debugging)
+  Serial.print("Alcohol sensor value: ");
+  Serial.println(sensorValue);
+  lcd.setCursor(0, 0);
+  lcd.print("Alcohol :");
+  lcd.print(sensorValue);
+
+  if (sensorValue > 800)
+  {
+     digitalWrite(Relay,HIGH);
+     delay(5000);
+     digitalWrite(Relay,LOW);
+     Serial.println("Driver is drunk");  
+     send_multi_sms();
+  }
+}
+
+void send_multi_sms()
+{
+  if(PHONE_1 != "")
+  {
+    Serial.print("Phone 1: ");
+    fona.sendSMS(PHONE_1,objectalert);
+    delay(20000);
+  }
+   
+}
