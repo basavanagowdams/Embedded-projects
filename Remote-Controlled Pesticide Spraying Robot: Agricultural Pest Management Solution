@@ -1,0 +1,126 @@
+#define REMOTEXY_MODE__SOFTSERIAL
+#include <SoftwareSerial.h>
+
+// RemoteXY connection settings 
+#define REMOTEXY_SERIAL_RX 2
+#define REMOTEXY_SERIAL_TX 3
+#define REMOTEXY_SERIAL_SPEED 9600
+#define REMOTEXY_ACCESS_PASSWORD "1111"
+
+#include <RemoteXY.h>
+
+// RemoteXY GUI configuration  
+#pragma pack(push, 1)
+uint8_t RemoteXY_CONF[] =   // 104 bytes
+  { 255,6,0,0,0,97,0,19,0,0,0,65,73,84,95,84,85,77,75,85,
+    82,0,8,1,106,200,1,1,6,0,1,39,46,26,26,0,2,31,70,0,
+    1,3,74,26,26,0,2,31,76,0,1,75,74,26,26,0,2,31,82,0,
+    1,40,102,26,26,0,2,31,66,0,10,11,153,24,24,48,4,26,31,79,
+    78,0,31,79,70,70,0,10,69,154,24,24,48,4,26,31,79,78,0,31,
+    79,70,70,0 };
+  
+// this structure defines all the variables and events of your control interface 
+struct {
+    // input variables
+    uint8_t forward; // =1 if button pressed, else =0
+    uint8_t left; // =1 if button pressed, else =0
+    uint8_t right; // =1 if button pressed, else =0
+    uint8_t backward; // =1 if button pressed, else =0
+    uint8_t Sound; // =1 if state is ON, else =0
+    uint8_t Speary; // =1 if state is ON, else =0
+    // other variable
+    uint8_t connect_flag;  // =1 if wire connected, else =0
+} RemoteXY;
+#pragma pack(pop)
+
+/////////////////////////////////////////////
+//           END RemoteXY include          //
+/////////////////////////////////////////////
+
+// Define motor control pins
+#define pin1 4  // Motor 1 control
+#define pin2 6  // Motor 1 control
+#define pin3 7  // Motor 2 control
+#define pin4 5  // Motor 2 control
+#define PIN_SOUND 8   // Sound control
+#define PIN_SPEARY 9  // Spray control
+
+// Motor control functions
+void moveForward() {
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, HIGH);
+  digitalWrite(pin3, LOW);
+  digitalWrite(pin4, HIGH);
+}
+
+void moveBackward() {
+  digitalWrite(pin1, HIGH);
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin3, HIGH);
+  digitalWrite(pin4, LOW);
+}
+
+void turnLeft() {
+  digitalWrite(pin1, HIGH);
+  digitalWrite(pin2, HIGH);
+  digitalWrite(pin3, LOW);
+  digitalWrite(pin4, LOW);
+}
+
+void turnRight() {
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin3, HIGH);
+  digitalWrite(pin4, HIGH);
+}
+
+void stopMotors() {
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin3, LOW);
+  digitalWrite(pin4, LOW);
+}
+
+void setup() 
+{
+  RemoteXY_Init(); 
+  
+  // Set all motor control pins as outputs
+  pinMode(pin1, OUTPUT);
+  pinMode(pin2, OUTPUT);
+  pinMode(pin3, OUTPUT);
+  pinMode(pin4, OUTPUT);
+  pinMode(PIN_SOUND, OUTPUT);
+  pinMode(PIN_SPEARY, OUTPUT);
+  
+  // Initialize all motors to stopped state
+  stopMotors();
+}
+
+void loop() 
+{ 
+  RemoteXY_Handler();
+  
+  // Check RemoteXY controls and call appropriate motor functions
+  if (RemoteXY.forward) {
+    moveForward();
+  }
+  else if (RemoteXY.backward) {
+    moveBackward();
+  }
+  else if (RemoteXY.left) {
+    turnLeft();
+  }
+  else if (RemoteXY.right) {
+    turnRight();
+  }
+  else {
+    stopMotors();  // If no direction is pressed, stop all motors
+  }
+  
+  // Handle other controls
+  digitalWrite(PIN_SOUND, (RemoteXY.Sound==0)?LOW:HIGH);
+  digitalWrite(PIN_SPEARY, (RemoteXY.Speary==0)?LOW:HIGH);
+  
+  // Do not call delay(), use instead RemoteXY_delay() if needed
+}
